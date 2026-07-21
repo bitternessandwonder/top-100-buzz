@@ -15,6 +15,9 @@ const POSTS_CACHE_TTL_MS = 30 * 1000;
 
 const memberCache = { savedAt: 0, value: null };
 const postsCache = new Map();
+const identityProfileCache = new Map();
+const IDENTITY_CACHE_TTL_MS = 60 * 60 * 1000;
+const IDENTITY_LOOKUP_CONCURRENCY = 12;
 let successfulMemberQueryIndex = 0;
 
 const MIME_TYPES = {
@@ -115,7 +118,7 @@ async function fetchJson(url, timeoutMs = 20_000) {
     const response = await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "top-100-buzz/1.0",
+        "User-Agent": "top-100-buzz/1.2",
       },
       signal: controller.signal,
       cache: "no-store",
@@ -238,6 +241,152 @@ function identityTokensForMember(member) {
   return [...tokens];
 }
 
+
+function findStringByKeys(value, wantedKeys, depth = 0, seen = new Set()) {
+  if (!value || typeof value !== "object" || depth > 6 || seen.has(value)) {
+    return "";
+  }
+
+  seen.add(value);
+
+  for (const [key, child] of Object.entries(value)) {
+    if (
+      wantedKeys.has(key.toLowerCase()) &&
+      typeof child === "string" &&
+      child.trim()
+    ) {
+      return child.trim();
+    }
+  }
+
+  for (const child of Object.values(value)) {
+    if (child && typeof child === "object") {
+      const found = findStringByKeys(child, wantedKeys, depth + 1, seen);
+      if (found) return found;
+    }
+  }
+
+  return "";
+}
+
+function identityProfileFromPayload(payload) {
+  const handleKeys = new Set([
+    "handle",
+    "profile_handle",
+    "username",
+    "screen_name",
+    "display_name",
+  ]);
+  const pfpKeys = new Set([
+    "pfp",
+    "profile_image",
+    "profile_image_url",
+    "avatar",
+    "avatar_url",
+  ]);
+  const addressKeys = new Set([
+    "primary_address",
+    "wallet",
+    "wallet_address",
+    "address",
+  ]);
+
+  return {
+    handle:
+      memberHandle(payload) ||
+      findStringByKeys(payload, handleKeys),
+    pfp:
+      memberImage(payload) ||
+      findStringByKeys(payload, pfpKeys),
+    primary_address:
+      memberPrimaryAddress(payload) ||
+      findStringByKeys(payload, addressKeys),
+    identity_tokens: identityTokensForMember(payload),
+  };
+}
+
+async function fetchIdentityProfile(wallet) {
+  const normalizedWallet = stringValue(wallet).toLowerCase();
+  if (!normalizedWallet) return null;
+
+  const cached = identityProfileCache.get(normalizedWallet);
+  if (cached && Date.now() - cached.savedAt < IDENTITY_CACHE_TTL_MS) {
+    return cached.value;
+  }
+
+  const url = `${API_BASE}/identities/by-wallet/${encodeURIComponent(wallet)}`;
+
+  try {
+    const payload = await fetchJson(url, 10_000);
+    const profile = identityProfileFromPayload(payload);
+    identityProfileCache.set(normalizedWallet, {
+      savedAt: Date.now(),
+      value: profile,
+    });
+    return profile;
+  } catch (error) {
+    console.error(`Identity lookup failed for ${wallet}:`, error);
+    identityProfileCache.set(normalizedWallet, {
+      savedAt: Date.now(),
+      value: null,
+    });
+    return null;
+  }
+}
+
+async function mapWithConcurrency(items, concurrency, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+
+      if (index >= items.length) return;
+      results[index] = await worker(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, () => runWorker())
+  );
+
+  return results;
+}
+
+async function enrichMembersWithIdentities(members) {
+  return mapWithConcurrency(
+    members,
+    IDENTITY_LOOKUP_CONCURRENCY,
+    async (member) => {
+      if (!member.primary_address) return member;
+
+      const identity = await fetchIdentityProfile(member.primary_address);
+      if (!identity) return member;
+
+      const tokens = new Set([
+        ...member.identity_tokens,
+        ...arrayValue(identity.identity_tokens),
+      ]);
+
+      if (identity.handle) {
+        tokens.add(`handle:${identity.handle.toLowerCase()}`);
+      }
+
+      return {
+        ...member,
+        handle: identity.handle || member.handle,
+        pfp: identity.pfp || member.pfp,
+        primary_address:
+          identity.primary_address || member.primary_address,
+        identity_tokens: [...tokens],
+      };
+    }
+  );
+}
+
 function normalizeMembers(rawMembers) {
   const deduped = new Map();
 
@@ -330,6 +479,7 @@ async function fetchTopMembers() {
       }
 
       if (normalized.length >= TOP_MEMBER_LIMIT) {
+        result.members = await enrichMembersWithIdentities(result.members);
         successfulMemberQueryIndex = index;
         memberCache.savedAt = Date.now();
         memberCache.value = result;
@@ -341,6 +491,7 @@ async function fetchTopMembers() {
   }
 
   if (bestResult) {
+    bestResult.members = await enrichMembersWithIdentities(bestResult.members);
     memberCache.savedAt = Date.now();
     memberCache.value = bestResult;
     return bestResult;
@@ -440,13 +591,194 @@ async function fetchDropsPage(page) {
   return extractList(payload, ["drops"]);
 }
 
+
+function proxiedPfpUrl(value) {
+  const raw = stringValue(value);
+  if (!raw) return "";
+  return `/api/pfp?src=${encodeURIComponent(raw)}`;
+}
+
+function imageCandidates(value) {
+  const raw = stringValue(value);
+  if (!raw) return [];
+
+  if (raw.toLowerCase().startsWith("ipfs://")) {
+    const path = raw
+      .slice("ipfs://".length)
+      .replace(/^ipfs\//i, "")
+      .replace(/^\/+/, "");
+
+    if (!path) return [];
+
+    return [
+      `https://ipfs.io/ipfs/${path}`,
+      `https://dweb.link/ipfs/${path}`,
+      `https://gateway.pinata.cloud/ipfs/${path}`,
+    ];
+  }
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return [];
+    return [url.toString()];
+  } catch {
+    return [];
+  }
+}
+
+function detectImageType(buffer, headerType, sourceUrl) {
+  const declared = stringValue(headerType).split(";")[0].toLowerCase();
+  if (declared.startsWith("image/")) return declared;
+
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return "image/png";
+  }
+
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    buffer.length >= 6 &&
+    buffer.subarray(0, 6).toString("ascii").startsWith("GIF8")
+  ) {
+    return "image/gif";
+  }
+
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  const firstText = buffer.subarray(0, 300).toString("utf8").trim().toLowerCase();
+  if (firstText.startsWith("<svg") || firstText.startsWith("<?xml")) {
+    return "image/svg+xml";
+  }
+
+  const pathname = (() => {
+    try {
+      return new URL(sourceUrl).pathname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+
+  if (pathname.endsWith(".png")) return "image/png";
+  if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return "image/jpeg";
+  if (pathname.endsWith(".gif")) return "image/gif";
+  if (pathname.endsWith(".webp")) return "image/webp";
+  if (pathname.endsWith(".svg")) return "image/svg+xml";
+
+  return "";
+}
+
+async function fetchPfpImage(source) {
+  const candidates = imageCandidates(source);
+  const errors = [];
+
+  for (const candidate of candidates) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 18_000);
+
+    try {
+      const response = await fetch(candidate, {
+        headers: {
+          Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+          Referer: "https://6529.io/",
+          Origin: "https://6529.io",
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Safari/537.36",
+        },
+        redirect: "follow",
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        errors.push(`${candidate}: HTTP ${response.status}`);
+        continue;
+      }
+
+      const contentLength = Number(response.headers.get("content-length") || 0);
+      if (contentLength > 12_000_000) {
+        errors.push(`${candidate}: image too large`);
+        continue;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (!buffer.length || buffer.length > 12_000_000) {
+        errors.push(`${candidate}: invalid image size`);
+        continue;
+      }
+
+      const contentType = detectImageType(
+        buffer,
+        response.headers.get("content-type"),
+        candidate
+      );
+
+      if (!contentType) {
+        errors.push(`${candidate}: unrecognized image type`);
+        continue;
+      }
+
+      return { buffer, contentType };
+    } catch (error) {
+      errors.push(
+        `${candidate}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw new Error(errors.join(" | ").slice(0, 1200) || "No usable image URL.");
+}
+
+async function servePfp(requestUrl, res) {
+  const source = requestUrl.searchParams.get("src") || "";
+
+  if (!source) {
+    sendJson(res, 400, { error: "Missing image source." });
+    return;
+  }
+
+  try {
+    const image = await fetchPfpImage(source);
+
+    res.writeHead(200, {
+      "Content-Type": image.contentType,
+      "Content-Length": image.buffer.length,
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end(image.buffer);
+  } catch (error) {
+    console.error("PFP proxy failed:", error);
+    sendJson(res, 404, { error: "Profile image could not be loaded." });
+  }
+}
+
 function publicMember(member) {
   return {
     rank: member.rank,
     level: member.level,
     handle: member.handle,
     primary_address: member.primary_address,
-    pfp: member.pfp,
+    pfp: proxiedPfpUrl(member.pfp),
   };
 }
 
@@ -557,6 +889,16 @@ const server = http.createServer(async (req, res) => {
       req.url || "/",
       `http://${req.headers.host || "localhost"}`
     );
+
+    if (requestUrl.pathname === "/api/pfp") {
+      if (req.method !== "GET") {
+        sendJson(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      await servePfp(requestUrl, res);
+      return;
+    }
 
     if (requestUrl.pathname === "/api/top-members") {
       if (req.method !== "GET") {
