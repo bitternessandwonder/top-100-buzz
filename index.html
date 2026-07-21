@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Public 6529 posts from the top 100 members ranked by Level."
+    />
+    <title>Top 100 Buzz</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="glow glow-one"></div>
+    <div class="glow glow-two"></div>
+
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">BRAIN BUZZ PRESENTS</p>
+          <h1>Top 100 <span>Buzz</span></h1>
+          <p class="intro">
+            A live public feed of posts by the 100 highest-Level members on
+            6529, ranked from highest Level downward.
+          </p>
+        </div>
+
+        <button id="refresh-button" class="button secondary" type="button">
+          Refresh
+        </button>
+      </header>
+
+      <aside class="notice">
+        <strong>Ranking rule:</strong> Level descending, ranks 1–100. The list
+        refreshes periodically as levels change. Only publicly available posts
+        are included.
+      </aside>
+
+      <nav class="tabs" aria-label="Feed views">
+        <button class="tab active" type="button" data-view="posts">
+          Recent posts
+        </button>
+        <button class="tab" type="button" data-view="members">
+          Top 100 members
+        </button>
+      </nav>
+
+      <section class="toolbar">
+        <label class="search">
+          <span>Filter what is loaded</span>
+          <input
+            id="search-input"
+            type="search"
+            placeholder="Search author, wave, rank, or message"
+            autocomplete="off"
+          />
+        </label>
+
+        <div class="status-group">
+          <span id="result-count" class="count">0 posts</span>
+          <span id="last-updated" class="updated">Not loaded yet</span>
+        </div>
+      </section>
+
+      <div id="error-box" class="error hidden" role="alert"></div>
+      <div id="warning-box" class="warning hidden"></div>
+      <div id="loading-box" class="loading">Loading the ranking and posts…</div>
+
+      <main id="posts-view" class="feed" aria-live="polite"></main>
+      <main id="members-view" class="members-grid hidden" aria-live="polite"></main>
+
+      <div id="load-more-wrap" class="load-more-wrap">
+        <button id="load-more-button" class="button primary hidden" type="button">
+          Scan older posts
+        </button>
+      </div>
+
+      <footer>
+        Independent community tool. Not an official 6529 product. Rankings and
+        posts are read from the public 6529 API.
+      </footer>
+    </div>
+
+    <template id="post-template">
+      <article class="post-card">
+        <div class="post-header">
+          <div class="identity">
+            <div class="rank-badge"></div>
+            <div class="avatar" aria-hidden="true"></div>
+            <div class="identity-text">
+              <h2 class="author"></h2>
+              <p class="member-meta"></p>
+            </div>
+          </div>
+          <time class="time"></time>
+        </div>
+
+        <div class="wave-line"></div>
+        <h3 class="title hidden"></h3>
+        <p class="message"></p>
+        <div class="media"></div>
+
+        <div class="post-footer">
+          <span class="serial"></span>
+          <span class="type-badge"></span>
+        </div>
+      </article>
+    </template>
+
+    <template id="member-template">
+      <article class="member-card">
+        <div class="member-rank"></div>
+        <div class="member-avatar" aria-hidden="true"></div>
+        <div class="member-copy">
+          <h2 class="member-name"></h2>
+          <p class="member-level"></p>
+          <p class="member-address"></p>
+        </div>
+      </article>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

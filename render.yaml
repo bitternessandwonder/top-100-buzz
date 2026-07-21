@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: top-100-buzz
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeployTrigger: commit
+    healthCheckPath: /

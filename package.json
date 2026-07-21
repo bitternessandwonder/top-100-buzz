@@ -1,0 +1,13 @@
+{
+  "name": "top-100-buzz",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Public 6529 posts from the top 100 members ranked by Level.",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
