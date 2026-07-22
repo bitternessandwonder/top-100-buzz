@@ -33,6 +33,7 @@ const chatCache = new Map();
 const topPostsCache = new Map();
 const rawDropsCache = new Map();
 const punkPostsCache = new Map();
+const punkAuthorBatchCache = new Map();
 const punkIdentityCache = { savedAt: 0, value: null };
 const punkPostsInFlight = new Map();
 
@@ -183,7 +184,7 @@ async function fetchJson(url, timeoutMs = 20_000) {
       const response = await fetch(url, {
         headers: {
           Accept: "application/json",
-          "User-Agent": "brain-buzz/2.0",
+          "User-Agent": "brain-buzz/2.1",
         },
         signal: controller.signal,
         cache: "no-store",
