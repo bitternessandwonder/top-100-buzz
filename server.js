@@ -2400,6 +2400,9 @@ function cryptoPunkRepRecipientValue(row) {
     row?.score,
     row?.total_rep,
     row?.rep_score,
+    row?.total,
+    row?.total_rating,
+    row?.recipient_rep,
     row?.recipient?.rep,
     row?.recipient?.total_rep,
     row?.profile?.rep,
@@ -2425,6 +2428,8 @@ function cryptoPunkRepRecipientKey(row) {
     row?.profile?.handle,
     row?.identity?.handle,
     row?.recipient_handle,
+    row?.profile_handle,
+    row?.identity_handle,
     row?.handle
   ).toLowerCase();
 }
@@ -2475,27 +2480,19 @@ async function fetchCryptoPunkRepOverview(category) {
   );
 }
 
-function cryptoPunkRepPageUrl(category, endpoint, page, variant) {
+function cryptoPunkRepPageUrl(category, endpoint, page) {
   const encoded = encodeURIComponent(category);
   const url = new URL(
     `${API_BASE}/rep/categories/${encoded}/${endpoint}`
   );
 
+  // The global REP category endpoints accept page and page_size.
+  // sort_direction and limit are rejected by this API.
   url.searchParams.set("page", String(page));
-
-  if (variant.sizeKey) {
-    url.searchParams.set(
-      variant.sizeKey,
-      String(CRYPTOPUNKS_REP_PAGE_SIZE)
-    );
-  }
-
-  if (variant.sortDirection) {
-    url.searchParams.set(
-      "sort_direction",
-      variant.sortDirection
-    );
-  }
+  url.searchParams.set(
+    "page_size",
+    String(CRYPTOPUNKS_REP_PAGE_SIZE)
+  );
 
   return url;
 }
@@ -2511,7 +2508,7 @@ async function countCryptoPunkRepPages(category, endpoint, variant) {
     page += 1
   ) {
     const payload = await fetchJsonDirect(
-      cryptoPunkRepPageUrl(category, endpoint, page, variant),
+      cryptoPunkRepPageUrl(category, endpoint, page),
       {
         timeoutMs: 30_000,
         sourceLabel: `${category} REP ${endpoint}`,
@@ -2592,6 +2589,7 @@ function cryptoPunkIdentityFromRating(row, key, index = 0) {
     row?.target_profile ||
     row?.profile ||
     row?.identity ||
+    row ||
     {};
 
   return normalizeDailyBuzzIdentity(recipient, index, {
@@ -2666,7 +2664,7 @@ async function collectCryptoPunkRepIdentityPages(
     page += 1
   ) {
     const payload = await fetchJsonDirect(
-      cryptoPunkRepPageUrl(category, endpoint, page, variant),
+      cryptoPunkRepPageUrl(category, endpoint, page),
       {
         timeoutMs: 30_000,
         sourceLabel: `${category} REP ${endpoint}`,
@@ -2740,30 +2738,27 @@ async function collectCryptoPunkRepIdentityPages(
 
 async function buildCryptoPunkHolderIdentities() {
   const errors = [];
-  const variants = [
-    { sizeKey: "page_size", sortDirection: null },
-    { sizeKey: "page_size", sortDirection: "DESC" },
-    { sizeKey: "page_size", sortDirection: "desc" },
-    { sizeKey: "limit", sortDirection: null },
-  ];
 
+  // The ratings endpoint currently returns an upstream 500 for the populated
+  // CryptoPunks category. The recipients endpoint is the correct aggregate for
+  // this metric: one current row per recipient identity, with non-positive REP
+  // filtered out below. This also avoids accidentally counting REP amount as a
+  // holder count.
   for (const category of CRYPTOPUNKS_REP_CATEGORIES) {
-    for (const variant of variants) {
-      try {
-        const identities = await collectCryptoPunkRepIdentityPages(
-          category,
-          "ratings",
-          variant
-        );
-        if (identities.length) return identities;
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : String(error));
-      }
+    try {
+      const identities = await collectCryptoPunkRepIdentityPages(
+        category,
+        "recipients",
+        null
+      );
+      if (identities.length) return identities;
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
     }
   }
 
   throw new Error(
-    `Unable to derive current CryptoPunk holders from punk6529 REP ratings. ${errors
+    `Unable to derive current CryptoPunk holders from CryptoPunks Holder REP recipients. ${errors
       .slice(0, 8)
       .join(" | ")}`
   );
