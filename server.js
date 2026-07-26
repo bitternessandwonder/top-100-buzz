@@ -2230,10 +2230,26 @@ function normalizeDailyBuzzIdentity(row, index = 0, extras = {}) {
   const pfp = stringValue(
     extras.pfp,
     profile.pfp,
+    row?.pfp,
+    row?.profile?.pfp,
+    row?.identity?.pfp,
+    row?.community_member?.pfp,
     row?.profile_image,
     row?.profile_image_url,
+    row?.profile?.profile_image,
+    row?.profile?.profile_image_url,
     row?.avatar,
-    row?.image
+    row?.avatar_url,
+    row?.profile?.avatar,
+    row?.profile?.avatar_url,
+    row?.picture,
+    row?.picture_url,
+    row?.profile?.picture,
+    row?.profile?.picture_url,
+    row?.image,
+    row?.image_url,
+    row?.profile?.image,
+    row?.profile?.image_url
   );
   const level = optionalNumberValue(
     extras.level,
@@ -2272,6 +2288,57 @@ function normalizeDailyBuzzIdentity(row, index = 0, extras = {}) {
     level,
     tdh,
     rep,
+  };
+}
+
+function publicDailyBuzzIdentity(identity) {
+  const address = stringValue(identity?.primary_address).toLowerCase();
+  const handle = stringValue(identity?.handle).replace(/^@/, "").toLowerCase();
+  const cachedIdentity = address
+    ? identityProfileCache.get(address)?.value
+    : null;
+  const cachedMembers = [
+    ...arrayValue(enrichedMemberCache.value?.members),
+    ...arrayValue(memberCache.value?.members),
+  ];
+  const cachedMember = cachedMembers.find((member) => {
+    const memberAddress = stringValue(member?.primary_address).toLowerCase();
+    const memberHandle = stringValue(member?.handle)
+      .replace(/^@/, "")
+      .toLowerCase();
+    return (
+      (address && memberAddress === address) ||
+      (handle && memberHandle === handle)
+    );
+  });
+
+  return {
+    ...identity,
+    handle: stringValue(
+      identity?.handle,
+      cachedIdentity?.handle,
+      cachedMember?.handle
+    ).replace(/^@/, ""),
+    primary_address: stringValue(
+      identity?.primary_address,
+      cachedIdentity?.primary_address,
+      cachedMember?.primary_address
+    ),
+    pfp: proxiedPfpUrl(
+      stringValue(
+        identity?.pfp,
+        cachedIdentity?.pfp,
+        cachedMember?.pfp
+      )
+    ),
+    level:
+      optionalNumberValue(identity?.level, cachedMember?.level),
+    tdh:
+      optionalNumberValue(
+        identity?.tdh,
+        cachedIdentity?.tdh,
+        cachedMember?.tdh
+      ),
   };
 }
 
@@ -2341,9 +2408,14 @@ async function fetchConsolidatedMetricIdentityPage(
         rows = matching;
       }
 
-      const identities = rows.map((row, index) =>
-        normalizeDailyBuzzIdentity(row, (page - 1) * pageSize + index)
-      );
+      const identities = rows
+        .map((row, index) =>
+          normalizeDailyBuzzIdentity(
+            row,
+            (page - 1) * pageSize + index
+          )
+        )
+        .map(publicDailyBuzzIdentity);
 
       let total = responseCount(payload);
 
