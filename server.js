@@ -2354,8 +2354,8 @@ async function countCryptoPunkRepPages(category, endpoint, variant) {
         identities.add(key);
         pageKeys.push(key);
       } else {
-        anonymousRows += 1;
-        pageKeys.push(`anonymous-${page}-${anonymousRows}`);
+        // A holder count must be deduplicated by a stable recipient identity.
+        // Ignore unkeyed rows rather than inflating the total.
       }
     }
 
@@ -2376,7 +2376,12 @@ async function countCryptoPunkRepPages(category, endpoint, variant) {
           : rows.length >= CRYPTOPUNKS_REP_PAGE_SIZE;
 
     if (!hasNext) {
-      return identities.size + anonymousRows;
+      if (!identities.size) {
+        throw new Error(
+          `${category} REP ${endpoint} returned no keyed positive punk6529 ratings.`
+        );
+      }
+      return identities.size;
     }
   }
 
@@ -2394,40 +2399,30 @@ async function buildCryptoPunkHolderCount() {
     { sizeKey: "limit", sortDirection: null },
   ];
 
+  // The category overview and recipients endpoints are global across every
+  // giver using the same REP label. They can also include historical/zeroed
+  // recipients. For a current holder metric, count only positive
+  // giver-recipient pairings granted by punk6529.
   for (const category of CRYPTOPUNKS_REP_CATEGORIES) {
-    try {
-      const overview = await fetchCryptoPunkRepOverview(category);
-      const count = explicitRecipientCount(overview);
-      if (count !== null && count > 0) {
-        return Math.trunc(count);
-      }
-    } catch (error) {
-      errors.push(
-        error instanceof Error ? error.message : String(error)
-      );
-    }
-
-    for (const endpoint of ["recipients", "ratings"]) {
-      for (const variant of variants) {
-        try {
-          const count = await countCryptoPunkRepPages(
-            category,
-            endpoint,
-            variant
-          );
-          if (count > 0) return count;
-        } catch (error) {
-          errors.push(
-            error instanceof Error ? error.message : String(error)
-          );
-        }
+    for (const variant of variants) {
+      try {
+        const count = await countCryptoPunkRepPages(
+          category,
+          "ratings",
+          variant
+        );
+        if (count > 0) return count;
+      } catch (error) {
+        errors.push(
+          error instanceof Error ? error.message : String(error)
+        );
       }
     }
   }
 
   throw new Error(
-    `Unable to derive CryptoPunk holders from 6529 REP. ${errors
-      .slice(0, 6)
+    `Unable to derive current CryptoPunk holders from punk6529 REP ratings. ${errors
+      .slice(0, 8)
       .join(" | ")}`
   );
 }
