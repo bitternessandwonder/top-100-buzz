@@ -2291,6 +2291,30 @@ function normalizeDailyBuzzIdentity(row, index = 0, extras = {}) {
   };
 }
 
+async function enrichDailyBuzzIdentities(identities) {
+  return mapWithConcurrency(
+    identities,
+    IDENTITY_LOOKUP_CONCURRENCY,
+    async (identity) => {
+      if (!identity?.primary_address || (identity.handle && identity.pfp)) {
+        return identity;
+      }
+
+      const profile = await fetchIdentityProfile(identity.primary_address);
+      if (!profile) return identity;
+
+      return {
+        ...identity,
+        handle: identity.handle || profile.handle,
+        primary_address:
+          profile.primary_address || identity.primary_address,
+        pfp: identity.pfp || profile.pfp,
+        tdh: optionalNumberValue(identity.tdh, profile.tdh),
+      };
+    }
+  );
+}
+
 function publicDailyBuzzIdentity(identity) {
   const address = stringValue(identity?.primary_address).toLowerCase();
   const handle = stringValue(identity?.handle).replace(/^@/, "").toLowerCase();
@@ -2408,14 +2432,16 @@ async function fetchConsolidatedMetricIdentityPage(
         rows = matching;
       }
 
-      const identities = rows
-        .map((row, index) =>
-          normalizeDailyBuzzIdentity(
-            row,
-            (page - 1) * pageSize + index
-          )
+      const normalizedIdentities = rows.map((row, index) =>
+        normalizeDailyBuzzIdentity(
+          row,
+          (page - 1) * pageSize + index
         )
-        .map(publicDailyBuzzIdentity);
+      );
+      const enrichedIdentities = await enrichDailyBuzzIdentities(
+        normalizedIdentities
+      );
+      const identities = enrichedIdentities.map(publicDailyBuzzIdentity);
 
       let total = responseCount(payload);
 
