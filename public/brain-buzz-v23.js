@@ -115,7 +115,7 @@ const viewCopy = {
   chats: {
     description: "Public chat activity from across 6529 Waves.",
     notice:
-      "<strong>All Chats:</strong> Public CHAT drops returned by the 6529 API. Select a post or its Wave name to open it on 6529.io.",
+      "<strong>All Chats:</strong> Public CHAT drops from the 6529 API (search, auto-refresh, and load-older). Select a post or its Wave name to open it on 6529.io.",
     placeholder: "Search author, Wave, or message",
   },
   top: {
@@ -236,6 +236,28 @@ function arweavePath(value) {
   return "";
 }
 
+function safeUrl(value) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  // Allow root-relative paths, but not protocol-relative URLs (//host).
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch {
+    // Reject non-absolute and non-root-relative values.
+  }
+
+  return "";
+}
+
 function assetUrls(value) {
   const raw = stringValue(value).trim();
   if (!raw) return [];
@@ -257,11 +279,12 @@ function assetUrls(value) {
     return [...new Set([
       `https://media.6529.io/arweave/${arPath}`,
       `https://arweave.net/${arPath}`,
-      /^https?:\/\//i.test(raw) ? raw : "",
+      safeUrl(raw),
     ].filter(Boolean))];
   }
 
-  return [raw];
+  const safe = safeUrl(raw);
+  return safe ? [safe] : [];
 }
 
 function setImageWithFallback(image, value, onFailure) {
@@ -703,8 +726,11 @@ function setMediaWithFallback(element, item) {
 }
 
 function externalLink(href, text, className = "") {
+  const safeHref = safeUrl(href);
+  if (!safeHref) return document.createTextNode(text);
+
   const link = document.createElement("a");
-  link.href = href;
+  link.href = safeHref;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = text;
@@ -2092,7 +2118,9 @@ function setLoading(value, loadingOlder = false) {
         ? "Load previous day"
         : activeView === "mainstage"
           ? "Load more entries"
-          : "Load older posts";
+          : activeView === "chats"
+            ? "Load older chats"
+            : "Load older posts";
 
   const activeItems =
     activeView === "members"
@@ -2248,7 +2276,13 @@ async function fetchFeedPage(
       view,
       mergeItems(state.items, arrayValue(payload.data), replace)
     );
-    state.page = page;
+    // Preserve the highest page loaded so a page-1 refresh does not break
+    // "Load older" pagination (ported from 6529-chat-feed review fixes).
+    if (replace) {
+      state.page = page;
+    } else {
+      state.page = Math.max(state.page, page);
+    }
     state.hasMore = Boolean(payload.has_more);
     state.loaded = true;
 
@@ -2368,8 +2402,11 @@ async function loadActiveView({ force = false } = {}) {
 
   const state = feedState[activeView];
 
-  if (!state.loaded || force) {
-    await fetchFeedPage(activeView, 1, { replace: force });
+  if (!state.loaded) {
+    await fetchFeedPage(activeView, 1, { replace: true });
+  } else if (force) {
+    // Merge newest page; keep already-loaded older pages in the feed.
+    await fetchFeedPage(activeView, 1, { replace: false });
   } else {
     renderFeed();
   }
@@ -2475,7 +2512,11 @@ async function switchView(view) {
     loadMoreButton.textContent =
       view === "mainstage"
         ? "Load more entries"
-        : "Load older posts";
+        : view === "chats"
+          ? "Load older chats"
+          : view === "punk"
+            ? "Load previous day"
+            : "Load older posts";
 
     if (previousView !== view) {
       feedView.replaceChildren();
