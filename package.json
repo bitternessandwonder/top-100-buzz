@@ -1,11 +1,12 @@
 {
-  "name": "top-100-buzz",
-  "version": "1.0.0",
+  "name": "brain-buzz",
+  "version": "2.3.0",
   "private": true,
-  "description": "Public 6529 posts from the top 100 members ranked by Level.",
+  "description": "Brain Buzz — a public 6529 community reader for Main Stage, Top 100 posts, chats, and identity discovery.",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js"
+    "check": "node --check server.js && node --check public/brain-buzz-v23.js && node --check public/member-profile-v1.js && node --test test/*.test.js",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=18"

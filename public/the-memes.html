@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="An immersive Brain Buzz gallery for The Memes by 6529." />
+  <meta name="theme-color" content="#080808" />
+  <title>The Memes — Brain Buzz</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f4ee;
+      --muted: #9b9b93;
+      --line: rgba(255,255,255,.14);
+      --panel: rgba(13,13,13,.84);
+      --acid: #d9ff43;
+      --acid-dark: #111600;
+      --danger: #ff7474;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 80% 8%, rgba(217,255,67,.08), transparent 27rem),
+        linear-gradient(145deg, #050505, #10100e 52%, #070707);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select { font: inherit; }
+    a { color: inherit; }
+    .noise {
+      position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: .065;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+    }
+    .topbar {
+      position: fixed; inset: 0 0 auto; z-index: 30;
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      min-height: 74px; padding: 14px clamp(16px, 3vw, 48px);
+      border-bottom: 1px solid var(--line); background: rgba(5,5,5,.76);
+      backdrop-filter: blur(20px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 0; }
+    .brand-mark { width: 14px; height: 14px; background: var(--acid); border-radius: 50%; box-shadow: 0 0 28px rgba(217,255,67,.45); }
+    .brand-copy { display: grid; line-height: 1; }
+    .brand-copy strong { font-size: 13px; letter-spacing: .14em; }
+    .brand-copy span { margin-top: 6px; color: var(--muted); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
+    .top-title { font-size: 11px; color: var(--muted); letter-spacing: .22em; text-transform: uppercase; }
+    .top-actions { justify-self: end; display: flex; align-items: center; gap: 9px; }
+    .pill, .icon-button {
+      border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--ink);
+      text-decoration: none; cursor: pointer; transition: .2s ease;
+    }
+    .pill { padding: 11px 15px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .pill:hover, .icon-button:hover { border-color: rgba(217,255,67,.6); transform: translateY(-1px); }
+    .pill.acid { background: var(--acid); border-color: var(--acid); color: var(--acid-dark); }
+    .icon-button { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; }
+
+    .shell { min-height: 100vh; padding-top: 74px; }
+    .hero {
+      min-height: calc(100vh - 74px); display: grid; grid-template-columns: minmax(250px,.7fr) minmax(360px,1.45fr) minmax(250px,.72fr);
+      gap: clamp(20px, 3vw, 48px); align-items: center; padding: clamp(28px, 4vw, 60px) clamp(18px, 4vw, 64px) 36px;
+    }
+    .hero-copy { align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; padding: 3vh 0; min-width: 0; }
+    .kicker { display: flex; align-items: center; gap: 12px; color: var(--acid); font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+    .kicker::before { content: ""; width: 34px; height: 1px; background: var(--acid); }
+    .display-title { margin: 24px 0 18px; font-size: clamp(48px, 7vw, 116px); line-height: .81; letter-spacing: -.075em; text-transform: uppercase; overflow-wrap: anywhere; }
+    .display-title span { display: block; color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.5); }
+    .description { max-width: 34rem; color: #c8c8c0; font-size: clamp(14px, 1.05vw, 17px); line-height: 1.65; }
+    .meta-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1px; margin-top: 28px; border: 1px solid var(--line); background: var(--line); }
+    .meta-cell { min-height: 82px; padding: 15px; background: rgba(7,7,7,.96); }
+    .meta-cell span { display: block; color: var(--muted); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; }
+    .meta-cell strong { display: block; margin-top: 9px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .stage { position: relative; align-self: stretch; min-height: 610px; display: grid; place-items: center; perspective: 1600px; }
+    .stage::before { content: ""; position: absolute; width: 74%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,.08); border-radius: 50%; }
+    .art-frame {
+      position: relative; width: min(100%, 690px); aspect-ratio: 1 / 1; overflow: hidden; border-radius: 4px;
+      background: #151515; box-shadow: 0 45px 90px rgba(0,0,0,.55); transform: rotateY(-4deg) rotateX(1deg); transition: transform .55s cubic-bezier(.2,.8,.2,1);
+    }
+    .art-frame:hover { transform: rotateY(0deg) rotateX(0deg) scale(1.012); }
+    .art-frame img, .art-frame video { width: 100%; height: 100%; object-fit: contain; display: block; background: #0d0d0d; }
+    .art-frame.loading::after { content: "Loading artwork"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; background: #111; }
+    .card-index { position: absolute; left: -14px; bottom: 12px; z-index: 2; font-size: clamp(60px, 8vw, 128px); line-height: .8; font-weight: 900; letter-spacing: -.08em; color: var(--acid); mix-blend-mode: difference; }
+    .stage-caption { position: absolute; right: -12px; top: 8%; writing-mode: vertical-rl; color: var(--muted); font-size: 9px; letter-spacing: .28em; text-transform: uppercase; }
+
+    .control-panel { align-self: stretch; display: flex; flex-direction: column; justify-content: space-between; padding: 3vh 0; min-width: 0; }
+    .mode-list { display: grid; border-top: 1px solid var(--line); }
+    .mode-button { display: flex; justify-content: space-between; align-items: center; gap: 14px; min-height: 58px; padding: 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; text-align: left; transition: .2s ease; }
+    .mode-button span:first-child { font-size: clamp(15px,1.35vw,21px); font-weight: 700; }
+    .mode-button span:last-child { font-size: 10px; }
+    .mode-button:hover, .mode-button.active { color: var(--ink); padding-left: 10px; }
+    .mode-button.active span:last-child { color: var(--acid); }
+    .nav-cluster { display: flex; align-items: center; gap: 10px; }
+    .nav-button { flex: 1; height: 62px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-size: 24px; transition: .2s ease; }
+    .nav-button:hover { background: var(--acid); color: var(--acid-dark); border-color: var(--acid); }
+    .position { min-width: 84px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .1em; }
+    .random-button { width: 100%; margin-top: 10px; padding: 17px; border: 0; background: var(--ink); color: #090909; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+
+    .archive { border-top: 1px solid var(--line); padding: 42px clamp(18px,4vw,64px) 80px; }
+    .archive-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 22px; }
+    .archive-head h2 { margin: 0; font-size: clamp(32px,5vw,72px); line-height: .9; letter-spacing: -.055em; text-transform: uppercase; }
+    .archive-head p { max-width: 34rem; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .filters { display: grid; grid-template-columns: minmax(220px,1fr) repeat(2,minmax(140px,220px)); gap: 10px; margin-bottom: 18px; }
+    .field { min-height: 52px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--ink); padding: 0 15px; outline: none; }
+    .field:focus { border-color: var(--acid); }
+    select.field { cursor: pointer; }
+    .archive-status { display: flex; justify-content: space-between; gap: 20px; margin: 10px 0 20px; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    .grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: clamp(10px,1.5vw,22px); }
+    .meme-card { position: relative; border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; min-width: 0; }
+    .thumb { position: relative; aspect-ratio: 1; overflow: hidden; background: #141414; }
+    .thumb img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .3s ease; }
+    .meme-card:hover .thumb img { transform: scale(1.045); filter: saturate(1.12); }
+    .thumb::after { content: ""; position: absolute; inset: 0; border: 1px solid transparent; transition: .2s ease; pointer-events: none; }
+    .meme-card:hover .thumb::after, .meme-card.selected .thumb::after { border-color: var(--acid); inset: 5px; }
+    .thumb-number { position: absolute; left: 9px; top: 8px; padding: 5px 7px; background: rgba(0,0,0,.76); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+    .card-copy { padding-top: 11px; }
+    .card-copy strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+    .card-copy span { display: block; margin-top: 5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .load-more { display: block; width: min(440px,100%); margin: 34px auto 0; padding: 17px; border: 1px solid var(--line); background: transparent; color: var(--ink); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+    .load-more:hover { border-color: var(--acid); color: var(--acid); }
+    .empty, .error { grid-column: 1 / -1; min-height: 240px; display: grid; place-items: center; text-align: center; border: 1px solid var(--line); color: var(--muted); padding: 28px; }
+    .error { color: #ffc1c1; }
+    .footer { display: flex; justify-content: space-between; gap: 20px; padding: 22px clamp(18px,4vw,64px); border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+    .footer a:hover { color: var(--acid); }
+
+    @media (max-width: 1100px) {
+      .hero { grid-template-columns: minmax(220px,.7fr) minmax(380px,1.3fr); }
+      .control-panel { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding-top: 0; }
+      .mode-list { grid-template-columns: repeat(5,1fr); }
+      .mode-button { padding: 0 10px; }
+      .mode-button span:last-child { display:none; }
+      .grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+    }
+    @media (max-width: 760px) {
+      .topbar { grid-template-columns: 1fr auto; min-height: 66px; }
+      .top-title { display:none; }
+      .pill:not(.acid) { display:none; }
+      .shell { padding-top: 66px; }
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 28px; }
+      .hero-copy { order: 2; padding: 0; }
+      .stage { order: 1; min-height: 0; }
+      .control-panel { order: 3; grid-column: auto; display:flex; padding:0; }
+      .display-title { font-size: clamp(54px,19vw,92px); }
+      .art-frame { width: 100%; transform:none; }
+      .stage-caption { display:none; }
+      .mode-list { grid-template-columns: repeat(2,1fr); }
+      .mode-button { min-height: 48px; }
+      .archive-head { display:block; }
+      .archive-head p { margin-top: 16px; }
+      .filters { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .footer { display:block; line-height:1.8; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Back to Brain Buzz">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-copy"><strong>BRAIN BUZZ</strong><span>The Memes archive</span></span>
+    </a>
+    <div class="top-title">Spread the message · seize the memes</div>
+    <div class="top-actions">
+      <a class="pill" href="https://6529.io/the-memes" target="_blank" rel="noopener noreferrer">Official collection ↗</a>
+      <a class="pill acid" href="https://6529.io/join-6529" target="_blank" rel="noopener noreferrer">Join 6529 ↗</a>
+      <button id="refresh" class="icon-button" type="button" aria-label="Refresh gallery">↻</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-live="polite">
+      <div class="hero-copy">
+        <div>
+          <div class="kicker">The Memes by 6529</div>
+          <h1 id="hero-title" class="display-title">Seize<br><span>The Memes</span></h1>
+          <p id="hero-description" class="description">A living, CC0 art collection built to spread decentralization. Select a card, follow a season, or let chance choose the next signal.</p>
+        </div>
+        <div class="meta-row">
+          <div class="meta-cell"><span>Artist</span><strong id="hero-artist">Loading…</strong></div>
+          <div class="meta-cell"><span>Season</span><strong id="hero-season">—</strong></div>
+          <div class="meta-cell"><span>Edition</span><strong id="hero-edition">—</strong></div>
+          <div class="meta-cell"><span>Card</span><strong id="hero-card">—</strong></div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div id="art-frame" class="art-frame loading"></div>
+        <div id="card-index" class="card-index">000</div>
+        <div class="stage-caption">CC0 · Public good · Open metaverse</div>
+      </div>
+
+      <aside class="control-panel" aria-label="Gallery controls">
+        <div class="mode-list">
+          <button class="mode-button active" type="button" data-mode="latest"><span>Latest</span><span>01</span></button>
+          <button class="mode-button" type="button" data-mode="random"><span>Random</span><span>02</span></button>
+          <button class="mode-button" type="button" data-mode="season"><span>By season</span><span>03</span></button>
+          <button class="mode-button" type="button" data-mode="artist"><span>By artist</span><span>04</span></button>
+          <button class="mode-button" type="button" data-mode="all"><span>All cards</span><span>05</span></button>
+        </div>
+        <div>
+          <div class="nav-cluster">
+            <button id="previous" class="nav-button" type="button" aria-label="Previous card">←</button>
+            <div id="position" class="position">0 / 0</div>
+            <button id="next" class="nav-button" type="button" aria-label="Next card">→</button>
+          </div>
+          <button id="random" class="random-button" type="button">Explore a random Meme</button>
+        </div>
+      </aside>
+    </section>
+
+    <section id="archive" class="archive">
+      <div class="archive-head">
+        <h2>The Archive</h2>
+        <p>Browse the collection without leaving Brain Buzz. Each card opens its official 6529 page for full provenance, distribution, collectors, and market context.</p>
+      </div>
+      <div class="filters">
+        <input id="search" class="field" type="search" placeholder="Search title, artist, card, or Meme…" autocomplete="off" />
+        <select id="season-filter" class="field" aria-label="Filter by season"><option value="">All seasons</option></select>
+        <select id="sort" class="field" aria-label="Sort cards">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="title">Title A–Z</option>
+          <option value="artist">Artist A–Z</option>
+        </select>
+      </div>
+      <div class="archive-status"><span id="archive-count">Loading collection…</span><span>← → keys navigate</span></div>
+      <div id="grid" class="grid"><div class="empty">Loading The Memes…</div></div>
+      <button id="load-more" class="load-more" type="button" hidden>Load more cards</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Independent community viewer · Data and artwork from 6529</span>
+    <span><a href="/">Brain Buzz</a> · <a href="https://6529.io/about/the-memes" target="_blank" rel="noopener noreferrer">Why memes matter ↗</a></span>
+  </footer>
+
+  <script>
+    (() => {
+      const state = { cards: [], filtered: [], selected: 0, shown: 30, mode: "latest", loading: false };
+      const $ = (id) => document.getElementById(id);
+      const grid = $("grid");
+      const artFrame = $("art-frame");
+      const search = $("search");
+      const seasonFilter = $("season-filter");
+      const sort = $("sort");
+      const loadMore = $("load-more");
+
+      const text = (value, fallback = "—") => String(value ?? "").trim() || fallback;
+      const escapeHtml = (value) => text(value, "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+      const pad = (value) => String(value || 0).padStart(3, "0");
+      const number = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
+
+      function mediaMarkup(card, hero = false) {
+        const image = text(card.image, "");
+        const animation = text(card.animation, "");
+        const source = image || animation;
+        if (!source) return '<div class="empty">Artwork unavailable</div>';
+        const lower = (animation || source).toLowerCase();
+        if (hero && animation && /\.(mp4|webm|mov)(\?|$)/.test(lower)) {
+          return '<video src="' + escapeHtml(animation) + '" poster="' + escapeHtml(image) + '" muted loop autoplay playsinline></video>';
+        }
+        return '<img src="' + escapeHtml(source) + '" alt="' + escapeHtml(card.title || "Meme Card") + '" loading="' + (hero ? "eager" : "lazy") + '" decoding="async" />';
+      }
+
+      function selectCard(index, scroll = false) {
+        if (!state.filtered.length) return;
+        state.selected = (index + state.filtered.length) % state.filtered.length;
+        const card = state.filtered[state.selected];
+        artFrame.classList.add("loading");
+        artFrame.innerHTML = mediaMarkup(card, true);
+        const media = artFrame.querySelector("img,video");
+        if (media) {
+          const ready = () => artFrame.classList.remove("loading");
+          media.addEventListener(media.tagName === "VIDEO" ? "loadeddata" : "load", ready, { once: true });
+          media.addEventListener("error", ready, { once: true });
+          if (media.complete) ready();
+        } else artFrame.classList.remove("loading");
+
+        $("card-index").textContent = pad(card.token_id);
+        const titleWords = text(card.title, "Untitled").split(/\s+/).filter(Boolean);
+        $("hero-title").innerHTML = escapeHtml(titleWords[0] || "Untitled") + (titleWords.length > 1 ? "<br><span>" + escapeHtml(titleWords.slice(1).join(" ")) + "</span>" : "");
+        $("hero-description").textContent = text(card.description, "A Meme Card in the 6529 collection.");
+        $("hero-artist").textContent = text(card.artist, "Unknown artist");
+        $("hero-season").textContent = card.season ? "SZN " + card.season : "—";
+        $("hero-edition").textContent = card.edition_size ? Number(card.edition_size).toLocaleString() : "—";
+        $("hero-card").textContent = "#" + text(card.token_id, "—");
+        $("position").textContent = (state.selected + 1).toLocaleString() + " / " + state.filtered.length.toLocaleString();
+        document.title = text(card.title, "The Memes") + " — Brain Buzz";
+        document.querySelectorAll(".meme-card").forEach((node) => node.classList.toggle("selected", Number(node.dataset.index) === state.selected));
+        if (scroll) document.querySelector('.meme-card[data-index="' + state.selected + '"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      function applyFilters(preserveSelection = false) {
+        const query = search.value.trim().toLowerCase();
+        const season = seasonFilter.value;
+        let cards = state.cards.filter((card) => {
+          if (season && String(card.season) !== season) return false;
+          if (!query) return true;
+          return [card.title, card.artist, card.token_id, card.meme, card.season].some((value) => String(value ?? "").toLowerCase().includes(query));
+        });
+        const sorter = sort.value;
+        cards.sort((a,b) => sorter === "oldest" ? number(a.token_id)-number(b.token_id) : sorter === "title" ? text(a.title).localeCompare(text(b.title)) : sorter === "artist" ? text(a.artist).localeCompare(text(b.artist)) : number(b.token_id)-number(a.token_id));
+        state.filtered = cards;
+        state.shown = 30;
+        renderGrid();
+        selectCard(preserveSelection ? Math.min(state.selected, Math.max(0,cards.length-1)) : 0);
+      }
+
+      function renderGrid() {
+        if (!state.filtered.length) {
+          grid.innerHTML = '<div class="empty">No Meme Cards match these filters.</div>';
+          loadMore.hidden = true;
+          $("archive-count").textContent = "0 cards";
+          return;
+        }
+        grid.innerHTML = state.filtered.slice(0, state.shown).map((card, index) =>
+          '<button class="meme-card' + (index === state.selected ? ' selected' : '') + '" type="button" data-index="' + index + '">' +
+            '<div class="thumb">' + mediaMarkup(card) + '<span class="thumb-number">#' + escapeHtml(card.token_id) + '</span></div>' +
+            '<div class="card-copy"><strong>' + escapeHtml(card.title) + '</strong><span>' + escapeHtml(card.artist) + (card.season ? ' · SZN ' + escapeHtml(card.season) : '') + '</span></div>' +
+          '</button>'
+        ).join("");
+        $("archive-count").textContent = state.filtered.length.toLocaleString() + " cards";
+        loadMore.hidden = state.shown >= state.filtered.length;
+        grid.querySelectorAll(".meme-card").forEach((button) => button.addEventListener("click", () => {
+          selectCard(Number(button.dataset.index));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }));
+      }
+
+      function populateSeasons() {
+        const seasons = [...new Set(state.cards.map((card) => number(card.season)).filter(Boolean))].sort((a,b) => b-a);
+        seasonFilter.innerHTML = '<option value="">All seasons</option>' + seasons.map((season) => '<option value="' + season + '">Season ' + season + '</option>').join("");
+      }
+
+      async function load(force = false) {
+        if (state.loading) return;
+        state.loading = true;
+        grid.innerHTML = '<div class="empty">Loading The Memes…</div>';
+        $("archive-count").textContent = "Loading collection…";
+        try {
+          const response = await fetch('/api/memes-gallery' + (force ? '?refresh=1' : ''), { cache: "no-store" });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || "Unable to load The Memes.");
+          state.cards = Array.isArray(payload.data) ? payload.data : [];
+          if (!state.cards.length) throw new Error("No Meme Cards were returned.");
+          populateSeasons();
+          sort.value = "newest";
+          applyFilters();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          grid.innerHTML = '<div class="error"><div><strong>The collection could not be loaded.</strong><br><br>' + escapeHtml(message) + '<br><br><a href="https://6529.io/the-memes" target="_blank" rel="noopener noreferrer">Open the official collection ↗</a></div></div>';
+          $("archive-count").textContent = "Collection unavailable";
+          artFrame.classList.remove("loading");
+        } finally { state.loading = false; }
+      }
+
+      $("previous").addEventListener("click", () => selectCard(state.selected - 1));
+      $("next").addEventListener("click", () => selectCard(state.selected + 1));
+      $("random").addEventListener("click", () => selectCard(Math.floor(Math.random() * state.filtered.length)));
+      $("refresh").addEventListener("click", () => load(true));
+      search.addEventListener("input", () => applyFilters(true));
+      seasonFilter.addEventListener("change", () => applyFilters());
+      sort.addEventListener("change", () => applyFilters(true));
+      loadMore.addEventListener("click", () => { state.shown += 30; renderGrid(); });
+      document.querySelectorAll(".mode-button").forEach((button) => button.addEventListener("click", () => {
+        document.querySelectorAll(".mode-button").forEach((node) => node.classList.remove("active"));
+        button.classList.add("active");
+        const mode = button.dataset.mode;
+        if (mode === "random") { selectCard(Math.floor(Math.random() * state.filtered.length)); return; }
+        if (mode === "season") { seasonFilter.focus(); document.getElementById("archive").scrollIntoView({ behavior:"smooth" }); return; }
+        if (mode === "artist") { search.value = ""; sort.value = "artist"; applyFilters(); document.getElementById("archive").scrollIntoView({ behavior:"smooth" }); return; }
+        if (mode === "all") { search.value = ""; seasonFilter.value = ""; sort.value = "oldest"; applyFilters(); document.getElementById("archive").scrollIntoView({ behavior:"smooth" }); return; }
+        search.value = ""; seasonFilter.value = ""; sort.value = "newest"; applyFilters();
+      }));
+      document.addEventListener("keydown", (event) => {
+        if (["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName)) return;
+        if (event.key === "ArrowLeft") selectCard(state.selected - 1);
+        if (event.key === "ArrowRight") selectCard(state.selected + 1);
+        if (event.key.toLowerCase() === "r") selectCard(Math.floor(Math.random() * state.filtered.length));
+        if (event.key === "Enter" && state.filtered[state.selected]) window.open(state.filtered[state.selected].official_url, "_blank", "noopener");
+      });
+      artFrame.addEventListener("click", () => { const card = state.filtered[state.selected]; if (card) window.open(card.official_url, "_blank", "noopener"); });
+      artFrame.style.cursor = "pointer";
+      load();
+    })();
+  </script>
+</body>
+</html>

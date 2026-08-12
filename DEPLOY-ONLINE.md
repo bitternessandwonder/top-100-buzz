@@ -1,26 +1,28 @@
-# Publish Top 100 Buzz
-
-You already used this process for the first feed.
+# Deploy Brain Buzz online
 
 ## 1. GitHub
 
-1. Make a new public repository called `top-100-buzz`.
-2. Click **Add file → Upload files**.
-3. Open this unzipped folder in Finder.
-4. Select everything *inside* the folder and drag it to GitHub.
-5. Confirm the blue `public` folder appears in the upload.
-6. Click **Commit changes**.
+Push this repository (including the `public/` folder with Brain Buzz assets) to
+GitHub. The service entrypoint is `server.js` via `npm start`.
 
 ## 2. Render
 
 1. In Render, click **New → Web Service**.
-2. Connect the new `top-100-buzz` GitHub repository.
+2. Connect the Brain Buzz GitHub repository.
 3. Use:
    - Runtime: Node
-   - Build command: `npm install`
+   - Build command: `npm install` (no dependencies today; keeps the platform happy)
    - Start command: `npm start`
-   - Instance type: Free
+   - Health check path: `/healthz`
+   - Instance type: Free (or higher)
 4. Create the service and wait for it to deploy.
 
-Do not overwrite your original Brain Buzz repository unless you intentionally
-want this new site to replace it.
+You can also use the included `render.yaml` blueprint, which already points the
+health check at `/healthz`.
+
+## Notes
+
+- The live app is **Brain Buzz**. Top 100 posts are available through the Brain
+  Buzz UI and `/api/top-posts`.
+- Static files are read from disk under `public/`.
+- No API keys are required for the public endpoints this app uses.
