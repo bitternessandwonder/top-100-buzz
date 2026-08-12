@@ -7,6 +7,11 @@ const path = require("node:path");
 const dns = require("node:dns").promises;
 const net = require("node:net");
 const { URL } = require("node:url");
+const {
+  positiveInteger,
+  extractList,
+  isChatDrop,
+} = require("./lib/helpers");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -19,6 +24,7 @@ const TOP_MEMBER_LIMIT = 100;
 const PAGE_SIZE = 100;
 const MEMBER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const FEED_CACHE_TTL_MS = 90 * 1000;
+const FEED_CACHE_MAX_ENTRIES = 50;
 const IDENTITY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const IDENTITY_LOOKUP_CONCURRENCY = 4;
 const CHAT_IDENTITY_ENRICH_LIMIT = 12;
@@ -81,6 +87,13 @@ let successfulMemberQueryIndex = 0;
 
 
 
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer",
+  "Cross-Origin-Resource-Policy": "same-origin",
+};
+
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
 
@@ -88,8 +101,25 @@ function sendJson(res, statusCode, payload) {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
     "Cache-Control": "no-store",
+    ...SECURITY_HEADERS,
   });
   res.end(body);
+}
+
+function pruneTimedCache(cache, ttlMs, maxEntries) {
+  const now = Date.now();
+
+  for (const [key, entry] of cache) {
+    if (!entry || now - entry.savedAt >= ttlMs) {
+      cache.delete(key);
+    }
+  }
+
+  while (cache.size >= maxEntries) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey === undefined) break;
+    cache.delete(oldestKey);
+  }
 }
 
 function arrayValue(value) {
@@ -130,40 +160,6 @@ function optionalNumberValue(...values) {
 
 function numberValue(...values) {
   return optionalNumberValue(...values) ?? 0;
-}
-
-function positiveInteger(value, fallback, maximum) {
-  const parsed = Number.parseInt(String(value ?? ""), 10);
-  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
-  return Math.min(parsed, maximum);
-}
-
-function extractList(payload, preferredKeys = []) {
-  if (Array.isArray(payload)) return payload;
-  if (!payload || typeof payload !== "object") return [];
-
-  const candidates = [];
-
-  for (const key of preferredKeys) {
-    candidates.push(payload[key]);
-  }
-
-  candidates.push(
-    payload.data,
-    payload.items,
-    payload.results,
-    payload.members,
-    payload.profiles,
-    payload.drops,
-    payload.data?.data,
-    payload.data?.items,
-    payload.data?.results,
-    payload.data?.members,
-    payload.data?.profiles,
-    payload.data?.drops
-  );
-
-  return candidates.find(Array.isArray) || [];
 }
 
 function sleep(milliseconds) {
@@ -1030,10 +1026,6 @@ function matchDropToMember(drop, lookup) {
   return null;
 }
 
-function isChatDrop(drop) {
-  return String(drop?.drop_type ?? drop?.type ?? "").toUpperCase() === "CHAT";
-}
-
 function dropTimestamp(drop) {
   const value =
     drop?.created_at ??
@@ -1156,13 +1148,17 @@ async function fetchChatFeed(page) {
   const value = {
     data,
     page,
+    page_size: PAGE_SIZE,
     scanned_drop_count: drops.length,
+    upstream_count: drops.length,
     chat_count: data.length,
     has_more: drops.length >= PAGE_SIZE,
     warnings: [],
     generated_at: new Date().toISOString(),
   };
 
+  pruneTimedCache(chatCache, FEED_CACHE_TTL_MS, FEED_CACHE_MAX_ENTRIES);
+  if (chatCache.has(cacheKey)) chatCache.delete(cacheKey);
   chatCache.set(cacheKey, { savedAt: Date.now(), value });
   return value;
 }
@@ -3673,15 +3669,25 @@ function contentTypeForPath(filePath) {
 
 function resolveStaticFile(pathname) {
   const requestedPath = pathname === "/" ? "/index.html" : pathname;
-  const relative = requestedPath.replace(/^\/+/, "");
+  let decoded;
+
+  try {
+    decoded = decodeURIComponent(requestedPath);
+  } catch {
+    return null;
+  }
+
+  const normalized = path.normalize(decoded).replace(/^(\.\.(?:\/|\\|$))+/, "");
+  const relative = normalized.replace(/^[/\\]+/, "");
   if (!relative || relative.includes("\0")) return null;
 
   const resolved = path.resolve(STATIC_ROOT, relative);
-  const rootWithSep = STATIC_ROOT.endsWith(path.sep)
-    ? STATIC_ROOT
-    : STATIC_ROOT + path.sep;
+  const relativeToRoot = path.relative(STATIC_ROOT, resolved);
 
-  if (resolved !== STATIC_ROOT && !resolved.startsWith(rootWithSep)) {
+  if (
+    relativeToRoot.startsWith("..") ||
+    path.isAbsolute(relativeToRoot)
+  ) {
     return null;
   }
 
@@ -3713,7 +3719,7 @@ async function serveStatic(req, res, pathname) {
     "Content-Type": contentTypeForPath(filePath),
     "Content-Length": stat.size,
     "Cache-Control": "no-store, max-age=0",
-    "X-Content-Type-Options": "nosniff",
+    ...SECURITY_HEADERS,
   });
 
   if (req.method === "HEAD") {
@@ -3742,6 +3748,7 @@ const server = http.createServer(async (req, res) => {
         "Content-Type": "application/json; charset=utf-8",
         "Content-Length": Buffer.byteLength(body),
         "Cache-Control": "no-store",
+        ...SECURITY_HEADERS,
       });
       if (req.method === "HEAD") res.end();
       else res.end(body);
@@ -3933,11 +3940,9 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 200, await fetchChatFeed(page));
       } catch (error) {
         console.error("Chat feed failed:", error);
+        // Generic client message (ported from 6529-chat-feed); details stay in logs.
         sendJson(res, 502, {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unable to load public chats.",
+          error: "Unable to contact the 6529 API for public chats.",
         });
       }
       return;
@@ -4111,7 +4116,12 @@ module.exports = {
   isPrivateOrLocalIp,
   detectImageType,
   assertSafePfpUrl,
+  positiveInteger,
+  extractList,
+  isChatDrop,
+  pruneTimedCache,
   API_BASE,
   MEMBER_CACHE_TTL_MS,
   FEED_CACHE_TTL_MS,
+  FEED_CACHE_MAX_ENTRIES,
 };
