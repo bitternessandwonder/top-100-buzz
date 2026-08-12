@@ -15,12 +15,35 @@ const {
   API_BASE,
   MEMBER_CACHE_TTL_MS,
   FEED_CACHE_TTL_MS,
+  FEED_CACHE_MAX_ENTRIES,
+  pruneTimedCache,
+  isChatDrop,
 } = require("../server.js");
 
 describe("cache TTLs", () => {
   it("keeps members cached for 6 hours and feeds for 90 seconds", () => {
     assert.equal(MEMBER_CACHE_TTL_MS, 6 * 60 * 60 * 1000);
     assert.equal(FEED_CACHE_TTL_MS, 90 * 1000);
+    assert.equal(FEED_CACHE_MAX_ENTRIES, 50);
+  });
+
+  it("prunes expired and excess feed-cache entries", () => {
+    const cache = new Map();
+    cache.set("old", { savedAt: Date.now() - FEED_CACHE_TTL_MS - 1, value: 1 });
+    cache.set("a", { savedAt: Date.now(), value: 2 });
+    cache.set("b", { savedAt: Date.now(), value: 3 });
+    // maxEntries uses >= so one slot remains for the next write.
+    pruneTimedCache(cache, FEED_CACHE_TTL_MS, 2);
+    assert.equal(cache.has("old"), false);
+    assert.equal(cache.size, 1);
+    assert.equal(cache.has("b"), true);
+  });
+});
+
+describe("isChatDrop (re-exported)", () => {
+  it("matches the shared helper", () => {
+    assert.equal(isChatDrop({ drop_type: "CHAT" }), true);
+    assert.equal(isChatDrop({ type: "post" }), false);
   });
 });
 
