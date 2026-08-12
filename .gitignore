@@ -1,0 +1,29 @@
+# Dependencies / installs
+node_modules/
+
+# Logs and debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+
+# Runtime dumps
+*.pid
+*.seed

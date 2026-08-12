@@ -1,53 +1,87 @@
-# Top 100 Buzz
+# Brain Buzz
 
-Top 100 Buzz is a read-only public feed of posts written by the 100 highest-Level
-6529 members.
+Brain Buzz is a read-only public reader for the 6529 community. It surfaces Main
+Stage activity, Top 100 member posts, public chats, Punk6529 posts, Explore
+stats, and member profiles — all from public 6529 APIs.
 
-## Ranking rule
+Top 100 posts are a **feature inside Brain Buzz**, not a separate product.
 
-1. Request the 6529 top-community-members list.
-2. Read each member's profile Level.
-3. Sort Level from highest to lowest.
-4. Keep exactly the first 100 unique members.
-5. Scan recent public V2 drops and keep posts whose author matches one of those
-   members.
+## Features
 
-Ties retain the ordering returned by the 6529 API.
+- Main Stage leaderboard and movers
+- Top 100 posts (members ranked by Level, then matched to recent public drops)
+- Public chats and Punk6529 feed
+- Explore dashboard and Daily Buzz identity lists
+- Member profiles and The Memes gallery
+- Same-origin `/api/pfp` proxy for known image hosts (allowlisted)
 
-## Run on a Mac
+## Run locally
 
-1. Unzip the folder.
-2. Double-click `START-MAC.command`.
-3. Keep Terminal open.
-4. Visit `http://localhost:3000`.
+Requires Node.js 18+.
 
-## Put it online
+```bash
+npm start
+```
 
-Create a new GitHub repository named `top-100-buzz`.
+Or double-click `START-MAC.command` / `START-WINDOWS.bat`.
 
-Upload **everything inside this folder**, including the complete blue `public`
-folder. On the GitHub repository's main page you should see:
+Open `http://localhost:3000`.
 
-- `public/`
-- `server.js`
-- `package.json`
-- `render.yaml`
+## Checks
 
-Then create a new Render Web Service connected to that repository:
+```bash
+npm run check
+```
 
-- Runtime: Node
-- Build command: `npm install`
-- Start command: `npm start`
-- Instance type: Free
+This syntax-checks the server and browser JS that actually run, then runs the
+small Node built-in test suite (no npm dependencies).
 
-## Important limits
+## Deploy
 
-- This version only reads public data.
-- Private or gated Wave posts are not included.
-- The site scans blocks of recent drop pages. “Scan older posts” searches the
-  next block.
-- The ranking is cached for 10 minutes and posts for 30 seconds to reduce API
-  traffic.
-- The code accepts several plausible sorting query variants because APIs can
-  change parameter casing. It then verifies the order itself by sorting the
-  returned member levels descending.
+See [DEPLOY-ONLINE.md](./DEPLOY-ONLINE.md). A Render blueprint lives in
+`render.yaml` (health check: `/healthz`).
+
+## API (selected)
+
+| Path | Purpose |
+| --- | --- |
+| `GET /healthz` | Lightweight health check |
+| `GET /api/top-members` | Top 100 members by Level (`?details=1` for enrichment) |
+| `GET /api/top-posts?page=` | Public posts from Top 100 members |
+| `GET /api/chats?page=` | Public chat drops |
+| `GET /api/main-stage-leaderboard?page=` | Main Stage leaderboard |
+| `GET /api/movers` | Main Stage movers |
+| `GET /api/explore` | Explore dashboard |
+| `GET /api/punk-posts?page=` | Punk6529 posts |
+| `GET /api/member-profile?identity=` | Member profile |
+| `GET /api/memes-gallery` | The Memes gallery |
+| `GET /api/daily-buzz-identities?metric=` | Daily Buzz identity pages |
+| `GET /api/pfp?src=` | Allowlisted profile-image proxy |
+
+Static UI files are served from `public/` (not embedded in `server.js`).
+
+## Caching (actual TTLs)
+
+| Data | TTL |
+| --- | --- |
+| Top members ranking | 6 hours (`MEMBER_CACHE_TTL_MS`) |
+| Top posts / chat feed pages | 90 seconds (`FEED_CACHE_TTL_MS`) |
+| Identity profiles | 24 hours |
+| Main Stage leaderboard | 60 seconds |
+| Explore dashboard | 10 minutes |
+| Memes gallery | 30 minutes |
+
+## Limits
+
+- Only public 6529 data is read. Private or gated Wave posts are not included.
+- Top posts scan recent drop pages; the UI can request later pages for older
+  matches.
+- Ranking query parameter casing can vary upstream; Brain Buzz tries several
+  variants and re-sorts by Level descending.
+- `/api/pfp` only fetches https images from known 6529 / IPFS / Arweave hosts
+  (including the live `d3lqz0a4bldqgf.cloudfront.net` media CDN), blocks
+  private/link-local resolutions when practical, and rejects SVG.
+
+## License
+
+MIT — see [LICENSE](./LICENSE).

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="A public 6529 identity activity profile on Brain Buzz."
+  />
+  <title>Identity Profile | Brain Buzz</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#d9ff43" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link
+    rel="apple-touch-icon"
+    sizes="180x180"
+    href="/apple-touch-icon.png"
+  />
+  <link rel="stylesheet" href="/member-profile-v1.css" />
+</head>
+<body>
+  <div class="glow glow-one"></div>
+  <div class="glow glow-two"></div>
+
+  <div class="profile-shell">
+    <nav class="profile-nav">
+      <a class="brand-link" href="/">
+        <span class="brand-label">BRAIN</span>
+        <span class="brand-accent">BUZZ</span>
+      </a>
+
+      <a class="back-link" href="/">← Back to dashboard</a>
+    </nav>
+
+    <div id="error-box" class="message-box error hidden" role="alert"></div>
+    <div id="warning-box" class="message-box warning hidden"></div>
+    <div id="loading-box" class="loading-card">
+      Loading public identity profile…
+    </div>
+
+    <main id="profile-content" class="hidden">
+      <header class="profile-hero">
+        <div id="profile-avatar" class="profile-avatar" aria-hidden="true"></div>
+
+        <div class="profile-copy">
+          <p class="eyebrow">6529 PUBLIC IDENTITY PROFILE</p>
+          <h1 id="profile-name">Member</h1>
+          <p id="profile-address" class="profile-address"></p>
+          <p id="profile-bio" class="profile-bio hidden"></p>
+
+          <div class="profile-actions">
+            <a
+              id="official-profile-link"
+              class="button primary"
+              href="https://6529.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open on 6529.io ↗
+            </a>
+            <button id="share-button" class="button secondary" type="button">
+              Share profile
+            </button>
+            <button
+              id="punk-daily-button"
+              class="button secondary hidden"
+              type="button"
+            >
+              Punk6529 Daily
+            </button>
+            <button id="refresh-button" class="button ghost" type="button">
+              Refresh
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section id="stats-grid" class="stats-grid" aria-label="Profile statistics">
+        <article class="stat-card">
+          <span class="stat-label">Top identity rank</span>
+          <strong id="stat-rank">—</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Level</span>
+          <strong id="stat-level">—</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">TDH</span>
+          <strong id="stat-tdh">—</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Recent public posts</span>
+          <strong id="stat-posts">0</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Active Waves loaded</span>
+          <strong id="stat-waves">0</strong>
+        </article>
+      </section>
+
+      <section id="punk-daily-section" class="profile-section hidden">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">PUNK6529 DAILY</p>
+            <h2>Daily public Wave activity</h2>
+          </div>
+          <p>
+            Newest complete UTC day first; posts within each day run
+            earliest to latest.
+          </p>
+        </div>
+        <div id="punk-daily-feed" class="punk-daily-feed"></div>
+        <div class="profile-load-more">
+          <button
+            id="punk-daily-load-more"
+            class="button secondary hidden"
+            type="button"
+          >
+            Load previous day
+          </button>
+        </div>
+      </section>
+
+      <section class="profile-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">DISCOVERY</p>
+            <h2>Most active Waves</h2>
+          </div>
+          <p>Based on the recent public activity loaded for this profile.</p>
+        </div>
+        <div id="waves-grid" class="waves-grid"></div>
+      </section>
+
+      <section class="profile-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">MAIN STAGE</p>
+            <h2>Recent Main Stage activity</h2>
+          </div>
+          <p>Submissions or posts found in the recent activity sample.</p>
+        </div>
+        <div id="main-stage-feed" class="profile-feed"></div>
+      </section>
+
+      <section class="profile-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">PUBLIC ACTIVITY</p>
+            <h2>Recent Wave posts</h2>
+          </div>
+          <p id="updated-label">Not loaded yet</p>
+        </div>
+        <div id="recent-feed" class="profile-feed"></div>
+      </section>
+
+      <footer>
+        Independent community tool. Not an official 6529 product. This identity page
+        displays publicly available information returned by the 6529 API.
+      </footer>
+    </main>
+  </div>
+
+  <script src="/member-profile-v1.js" defer></script>
+</body>
+</html>

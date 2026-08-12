@@ -1,124 +1,246 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Public 6529 posts from the top 100 members ranked by Level."
-    />
-    <title>Top 100 Buzz</title>
-    <link rel="stylesheet" href="/style.css" />
-  </head>
-  <body>
-    <div class="glow glow-one"></div>
-    <div class="glow glow-two"></div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="Brain Buzz: public 6529 activity, Main Stage movement, and identity discovery."
+  />
+  <title>Brain Buzz</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#d9ff43" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Brain Buzz" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/brain-buzz-v23.css" />
+</head>
+<body>
+  <div class="glow glow-one"></div>
+  <div class="glow glow-two"></div>
 
-    <div class="page-shell">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">BRAIN BUZZ PRESENTS</p>
-          <h1>Top 100 <span>Buzz</span></h1>
-          <p class="intro">
-            A live public feed of posts by the 100 highest-Level members on
-            6529, ranked from highest Level downward.
-          </p>
-        </div>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">6529 COMMUNITY READER</p>
+        <h1>Brain <span>Buzz</span></h1>
+        <p id="view-description" class="intro">
+          The live leaderboard for The Memes – Main Stage Wave.
+        </p>
+      </div>
 
+      <div class="hero-actions" aria-label="Brain Buzz actions">
+        <a
+          class="button primary hero-link-button join-6529-button"
+          href="https://6529.io/join-6529"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Join 6529 on 6529.io (opens in a new tab)"
+        >
+          JOIN 6529 <span aria-hidden="true">↗</span>
+        </a>
+        <a
+          class="button secondary hero-link-button memes-button"
+          href="/the-memes"
+          aria-label="Explore The Memes inside Brain Buzz"
+        >
+          THE MEMES <span aria-hidden="true">↗</span>
+        </a>
         <button id="refresh-button" class="button secondary" type="button">
           Refresh
         </button>
-      </header>
-
-      <aside class="notice">
-        <strong>Ranking rule:</strong> Level descending, ranks 1–100. The list
-        refreshes periodically as levels change. Only publicly available posts
-        are included.
-      </aside>
-
-      <nav class="tabs" aria-label="Feed views">
-        <button class="tab active" type="button" data-view="posts">
-          Recent posts
-        </button>
-        <button class="tab" type="button" data-view="members">
-          Top 100 members
-        </button>
-      </nav>
-
-      <section class="toolbar">
-        <label class="search">
-          <span>Filter what is loaded</span>
-          <input
-            id="search-input"
-            type="search"
-            placeholder="Search author, wave, rank, or message"
-            autocomplete="off"
-          />
-        </label>
-
-        <div class="status-group">
-          <span id="result-count" class="count">0 posts</span>
-          <span id="last-updated" class="updated">Not loaded yet</span>
-        </div>
-      </section>
-
-      <div id="error-box" class="error hidden" role="alert"></div>
-      <div id="warning-box" class="warning hidden"></div>
-      <div id="loading-box" class="loading">Loading the ranking and posts…</div>
-
-      <main id="posts-view" class="feed" aria-live="polite"></main>
-      <main id="members-view" class="members-grid hidden" aria-live="polite"></main>
-
-      <div id="load-more-wrap" class="load-more-wrap">
-        <button id="load-more-button" class="button primary hidden" type="button">
-          Scan older posts
-        </button>
       </div>
+    </header>
 
-      <footer>
-        Independent community tool. Not an official 6529 product. Rankings and
-        posts are read from the public 6529 API.
-      </footer>
+    <nav class="tabs" aria-label="Brain Buzz main areas">
+      <button
+        class="tab active"
+        type="button"
+        data-view="mainstage"
+        data-group="mainstage"
+      >
+        TDH Voting
+      </button>
+      <button
+        class="tab"
+        type="button"
+        data-view="chats"
+        data-group="waves"
+      >
+        Waves (Chats)
+      </button>
+      <button
+        class="tab"
+        type="button"
+        data-view="members"
+        data-group="identities"
+      >
+        Top 100 Identities
+      </button>
+      <button
+        class="tab"
+        type="button"
+        data-view="explore"
+        data-group="explore"
+      >
+        Daily Buzz
+      </button>
+    </nav>
+
+    <nav
+      id="mainstage-subtabs"
+      class="subtabs"
+      aria-label="Main Stage views"
+    >
+      <button
+        class="subtab active"
+        type="button"
+        data-view="mainstage"
+      >
+        Leaderboard
+      </button>
+      <button class="subtab" type="button" data-view="movers">
+        Movers
+      </button>
+    </nav>
+
+    <nav
+      id="waves-subtabs"
+      class="subtabs hidden"
+      aria-label="Wave and chat views"
+    >
+      <button
+        class="subtab active"
+        type="button"
+        data-view="chats"
+      >
+        All Chats
+      </button>
+      <button class="subtab" type="button" data-view="top">
+        Top 100 Buzz
+      </button>
+      <button class="subtab" type="button" data-view="punk">
+        Punk6529 Daily
+      </button>
+      <button class="subtab" type="button" data-view="radar">
+        Hot Waves
+      </button>
+    </nav>
+
+    <aside id="notice" class="notice">
+      <strong>Main Stage Leaderboard:</strong> Ordered by current voting rank,
+      with each entry’s current Voting TDH. Select an entry to open the
+      original submission on 6529.io.
+    </aside>
+
+    <section class="toolbar">
+      <label id="search-container" class="search">
+        <span>Filter what is loaded</span>
+        <input
+          id="search-input"
+          type="search"
+          placeholder="Search artist, title, rank, or Voting TDH"
+          autocomplete="off"
+        />
+      </label>
+
+      <div id="status-group" class="status-group">
+        <span id="result-count" class="count">0 entries</span>
+        <span id="last-updated" class="updated">Not loaded yet</span>
+      </div>
+    </section>
+
+    <div id="error-box" class="error hidden" role="alert"></div>
+    <div id="warning-box" class="warning hidden"></div>
+    <div id="loading-box" class="loading">Loading Brain Buzz…</div>
+
+    <main id="feed-view" class="feed" aria-live="polite"></main>
+    <main id="movers-view" class="custom-view hidden" aria-live="polite"></main>
+    <main id="explore-view" class="custom-view hidden" aria-live="polite"></main>
+    <section
+      id="identity-controls"
+      class="identity-controls hidden"
+      aria-label="Identity sorting"
+    >
+      <div>
+        <span class="identity-sort-label">Sort identities by</span>
+        <div class="identity-sort-buttons">
+          <button
+            class="identity-sort-button active"
+            type="button"
+            data-identity-sort="level"
+          >
+            Level
+          </button>
+          <button
+            class="identity-sort-button"
+            type="button"
+            data-identity-sort="tdh"
+          >
+            TDH
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <main id="members-view" class="members-grid hidden" aria-live="polite"></main>
+
+    <div id="load-more-wrap" class="load-more-wrap">
+      <button id="load-more-button" class="button primary hidden" type="button">
+        Load older posts
+      </button>
     </div>
 
-    <template id="post-template">
-      <article class="post-card">
-        <div class="post-header">
-          <div class="identity">
-            <div class="rank-badge"></div>
-            <div class="avatar" aria-hidden="true"></div>
-            <div class="identity-text">
-              <h2 class="author"></h2>
-              <p class="member-meta"></p>
-            </div>
+    <footer>
+      Independent community tool. Not an official 6529 product. Only publicly
+      available content is included.
+    </footer>
+  </div>
+
+  <template id="post-template">
+    <article class="post-card">
+      <div class="post-header">
+        <div class="identity">
+          <div class="rank-badge hidden"></div>
+          <div class="avatar" aria-hidden="true"></div>
+          <div class="identity-text">
+            <h2 class="author"></h2>
+            <p class="member-meta"></p>
           </div>
-          <time class="time"></time>
         </div>
+        <time class="time"></time>
+      </div>
 
-        <div class="wave-line"></div>
-        <h3 class="title hidden"></h3>
-        <p class="message"></p>
-        <div class="media"></div>
+      <div class="wave-line"></div>
+      <h3 class="title hidden"></h3>
+      <p class="message"></p>
+      <div class="media"></div>
 
-        <div class="post-footer">
-          <span class="serial"></span>
-          <span class="type-badge"></span>
-        </div>
-      </article>
-    </template>
+      <div class="post-footer">
+        <span class="serial"></span>
+        <span class="type-badge"></span>
+      </div>
+    </article>
+  </template>
 
-    <template id="member-template">
-      <article class="member-card">
-        <div class="member-rank"></div>
-        <div class="member-avatar" aria-hidden="true"></div>
-        <div class="member-copy">
-          <h2 class="member-name"></h2>
-          <p class="member-level"></p>
-          <p class="member-address"></p>
-        </div>
-      </article>
-    </template>
+  <template id="identity-template">
+    <article class="member-card">
+      <div class="member-rank"></div>
+      <div class="member-avatar" aria-hidden="true"></div>
+      <div class="member-copy">
+        <h2 class="member-name"></h2>
+        <p class="member-level"></p>
+        <p class="member-social hidden"></p>
+        <p class="member-address"></p>
+      </div>
+    </article>
+  </template>
 
-    <script src="/app.js" defer></script>
-  </body>
+  <script src="/brain-buzz-v23.js" defer></script>
+</body>
 </html>
